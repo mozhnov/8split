@@ -168,10 +168,8 @@ func TestGetByClient(t *testing.T) {
 	assert.Len(t, storedParcels, parcelsLen)
 
 	// check
-	for _, parcel := range storedParcels {
-		// в parcelMap лежат добавленные посылки, ключ - идентификатор посылки, значение - сама посылка
-		// убедитесь, что все посылки из storedParcels есть в parcelMap
-		// убедитесь, что значения полей полученных посылок заполнены верно
-		require.Equal(t, parcel, parcelMap[parcel.Number])
-	}
+	// в parcelMap лежат добавленные посылки, ключ - идентификатор посылки, значение - сама посылка
+	// убедитесь, что все посылки из storedParcels есть в parcelMap
+	// убедитесь, что значения полей полученных посылок заполнены верно
+	assert.ElementsMatch(t, storedParcels, parcelMap)
 }
