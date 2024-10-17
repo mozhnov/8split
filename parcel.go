@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"log"
 )
 
 type ParcelStore struct {
@@ -16,23 +15,15 @@ func NewParcelStore(db *sql.DB) ParcelStore {
 
 func (s ParcelStore) Add(p Parcel) (int, error) {
 	// реализуйте добавление строки в таблицу parcel, используйте данные из переменной p
-	res, err := s.db.Exec("INSERT INTO parcel (Client, Status, Address, created_at) VALUES (:Client, :Status, :Address, :created_at)",
+	res, _ := s.db.Exec("INSERT INTO parcel (Client, Status, Address, created_at) VALUES (:Client, :Status, :Address, :created_at)",
 		//sql.Named("Number", p.Number),
 		sql.Named("Client", p.Client),
 		sql.Named("Status", p.Status),
 		sql.Named("Address", p.Address),
 		sql.Named("created_at", p.CreatedAt))
-	if err != nil {
-		fmt.Println(err)
-		return 0, err
-	}
+
 	// верните идентификатор последней добавленной записи
 	id, err := res.LastInsertId()
-
-	if err != nil {
-		return 0, err
-	}
-
 	return int(id), err
 }
 
@@ -42,10 +33,6 @@ func (s ParcelStore) Get(number int) (Parcel, error) {
 	p := Parcel{}
 	row := s.db.QueryRow("SELECT Number, Client, Status, Address, created_at FROM parcel WHERE Number = :Number", sql.Named("Number", number))
 	err := row.Scan(&p.Number, &p.Client, &p.Status, &p.Address, &p.CreatedAt)
-	if err != nil {
-		fmt.Println(err)
-		return p, err
-	}
 	// заполните объект Parcel данными из таблицы
 	return p, err
 }
@@ -55,7 +42,7 @@ func (s ParcelStore) GetByClient(client int) ([]Parcel, error) {
 	// здесь из таблицы может вернуться несколько строк
 	rows, err := s.db.Query("SELECT Number, Client, Status, Address, created_at FROM parcel WHERE Client = :Client", sql.Named("Client", client))
 	if err != nil {
-		log.Println(err)
+		fmt.Println(err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -64,15 +51,10 @@ func (s ParcelStore) GetByClient(client int) ([]Parcel, error) {
 		p := Parcel{}
 		err := rows.Scan(&p.Number, &p.Client, &p.Status, &p.Address, &p.CreatedAt)
 		if err != nil {
-			log.Println(err)
+			fmt.Println(err)
 			return nil, err
 		}
 		res = append(res, p)
-	}
-
-	if err := rows.Err(); err != nil {
-		log.Println(err)
-		return nil, err
 	}
 	// заполните срез Parcel данными из таблицы
 	return res, err
@@ -83,54 +65,24 @@ func (s ParcelStore) SetStatus(number int, status string) error {
 	_, err := s.db.Exec("UPDATE parcel SET Status = :Status WHERE Number = :Number",
 		sql.Named("Status", status),
 		sql.Named("Number", number))
-	if err != nil {
-		fmt.Println(err)
-		return err
-	}
-
 	return err
 }
 
 func (s ParcelStore) SetAddress(number int, address string) error {
 	// реализуйте обновление адреса в таблице parcel
 	// менять адрес можно только если значение статуса registered
-	p := Parcel{}
-	row := s.db.QueryRow("SELECT Status FROM parcel WHERE Number = :Number", sql.Named("Number", number))
-	err := row.Scan(&p.Status)
-	if err != nil {
-		fmt.Println(err)
-		return err
-	}
-	if p.Status == ParcelStatusRegistered {
-		_, err := s.db.Exec("UPDATE parcel SET Address = :Address WHERE Number = :Number",
-			sql.Named("Address", address),
-			sql.Named("Number", number))
-		if err != nil {
-			fmt.Println(err)
-			return err
-		}
-	}
-
+	_, err := s.db.Exec("UPDATE parcel SET Address = :Address WHERE Number = :Number, Status = :Status",
+		sql.Named("Address", address),
+		sql.Named("Number", number),
+		sql.Named("Status", ParcelStatusRegistered))
 	return err
 }
 
 func (s ParcelStore) Delete(number int) error {
 	// реализуйте удаление строки из таблицы parcel
 	// удалять строку можно только если значение статуса registered
-	p := Parcel{}
-	row := s.db.QueryRow("SELECT Status FROM parcel WHERE Number = :Number", sql.Named("Number", number))
-	err := row.Scan(&p.Status)
-	if err != nil {
-		fmt.Println(err)
-		return err
-	}
-
-	if p.Status == ParcelStatusRegistered {
-		_, err = s.db.Exec("DELETE FROM parcel WHERE Number = :Number", sql.Named("Number", number))
-		if err != nil {
-			fmt.Println(err)
-			return err
-		}
-	}
+	_, err := s.db.Exec("DELETE FROM parcel WHERE Number = :Number, Status = :Status",
+		sql.Named("Number", number),
+		sql.Named("Status", ParcelStatusRegistered))
 	return err
 }
